@@ -1,14 +1,51 @@
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                                QLabel, QPushButton, QSystemTrayIcon, QMenu,
-                               QSlider, QCheckBox, QGroupBox,
-                               QMessageBox, QSpinBox, QDoubleSpinBox, QApplication)
+                               QSlider, QCheckBox, QGroupBox, QTextEdit,
+                               QMessageBox, QSpinBox, QDoubleSpinBox, QApplication,
+                               QComboBox, QSplitter)  # 添加 QTextEdit, QSplitter
 from PySide6.QtCore import Qt, QTimer, Signal, Slot, QSize
-from PySide6.QtGui import QIcon, QPixmap, QFont, QAction
-import os
-import sys
+from PySide6.QtGui import QIcon, QPixmap, QFont, QAction, QTextCharFormat, QColor, QTextCursor
 import logging
-from pathlib import Path
 from calibration import CalibrationDialog
+from pycaw.pycaw import AudioUtilities
+
+
+class LogHandler(logging.Handler):
+    """自定义日志处理器，支持颜色显示"""
+
+    def __init__(self, text_edit):
+        super().__init__()
+        self.text_edit = text_edit
+        self.format = logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(message)s')
+
+        # 定义不同级别的日志颜色
+        self.colors = {
+            logging.DEBUG: QColor(128, 128, 128),  # 灰色
+            logging.INFO: QColor(0, 174, 255),    # 蓝色
+            logging.WARNING: QColor(255, 165, 0),  # 橙色
+            logging.ERROR: QColor(255, 0, 0),     # 红色
+            logging.CRITICAL: QColor(139, 0, 0)   # 深红色
+        }
+
+    def emit(self, record):
+        msg = self.format.format(record)
+        cursor = self.text_edit.textCursor()
+        fmt = QTextCharFormat()
+        fmt.setForeground(self.colors.get(record.levelno, QColor(0, 0, 0)))
+
+        # 插入日志文本
+        cursor.movePosition(QTextCursor.End)
+        cursor.insertText(msg + '\n', fmt)
+
+        # 插入间隔
+        spacer_fmt = QTextCharFormat()
+        spacer_fmt.setFontPointSize(8)  # 设置间隔的字体大小
+        cursor.insertText('\n', spacer_fmt)
+
+        # 滚动到最新日志
+        self.text_edit.verticalScrollBar().setValue(
+            self.text_edit.verticalScrollBar().maximum())
 
 
 class MainWindow(QMainWindow):
@@ -23,6 +60,15 @@ class MainWindow(QMainWindow):
         self.volume_controller = volume_controller
         self.config = config
         self.service_manager = service_manager
+        self.audio_devices = []  # 用于存储音频设备列表
+
+        # 设置日志处理器
+        self.log_text_edit = QTextEdit()
+        self.log_text_edit.setReadOnly(True)
+        self.log_handler = LogHandler(self.log_text_edit)
+        self.log_handler.setFormatter(
+            logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        logging.getLogger('OfficeGuardian').addHandler(self.log_handler)
 
         self._init_ui()
         self._create_tray_icon()
@@ -39,14 +85,28 @@ class MainWindow(QMainWindow):
     def _init_ui(self):
         """初始化UI"""
         self.setWindowTitle("办公室的大盾 - 音频响度均衡器")
-        self.setMinimumSize(500, 400)
+        self.setMinimumSize(800, 500)  # 增加窗口大小以适应日志显示区域
 
-        # 中央部件
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
+        # 创建主分割器
+        main_splitter = QSplitter(Qt.Horizontal)
+        self.setCentralWidget(main_splitter)
 
-        # 主布局
-        main_layout = QVBoxLayout(central_widget)
+        # 左侧控制面板
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+
+        # --- 音频设备选择 ---
+        device_group = QGroupBox("音频设备选择")
+        device_layout = QHBoxLayout(device_group)
+
+        device_label = QLabel("选择设备:")
+        self.device_combo = QComboBox()
+        self._populate_device_list()  # 填充设备列表
+        self.device_combo.currentIndexChanged.connect(self._on_device_changed)
+
+        device_layout.addWidget(device_label)
+        device_layout.addWidget(self.device_combo)
+        left_layout.addWidget(device_group)
 
         # --- 音频状态组 ---
         status_group = QGroupBox("音频状态")
@@ -79,7 +139,7 @@ class MainWindow(QMainWindow):
         audio_status_layout.addWidget(self.audio_status_value_label)
         status_layout.addLayout(audio_status_layout)
 
-        main_layout.addWidget(status_group)
+        left_layout.addWidget(status_group)
 
         # --- 参数设置组 ---
         settings_group = QGroupBox("参数设置")
@@ -148,16 +208,17 @@ class MainWindow(QMainWindow):
         settings_layout.addLayout(interval_min_layout)
 
         # 音量调整系数
-        step_layout = QHBoxLayout()
-        step_label = QLabel("渐进式音量调整系数k:")
-        self.step_spin = QDoubleSpinBox()
-        self.step_spin.setRange(0.1, 0.4)
-        self.step_spin.setValue(self.config.volume_change_k)
-        self.step_spin.setSingleStep(0.02)
-        self.step_spin.valueChanged.connect(self._on_volume_change_k_changed)
-        step_layout.addWidget(step_label)
-        step_layout.addWidget(self.step_spin)
-        settings_layout.addLayout(step_layout)
+        volume_change_k_layout = QHBoxLayout()
+        volume_change_k_label = QLabel("渐进式音量调整系数k:")
+        self.volume_change_k_spin = QDoubleSpinBox()
+        self.volume_change_k_spin.setRange(0.1, 0.4)
+        self.volume_change_k_spin.setValue(self.config.volume_change_k)
+        self.volume_change_k_spin.setSingleStep(0.02)
+        self.volume_change_k_spin.valueChanged.connect(
+            self._on_volume_change_k_changed)
+        volume_change_k_layout.addWidget(volume_change_k_label)
+        volume_change_k_layout.addWidget(self.volume_change_k_spin)
+        settings_layout.addLayout(volume_change_k_layout)
 
         # 开机自启动
         autostart_layout = QHBoxLayout()
@@ -176,7 +237,7 @@ class MainWindow(QMainWindow):
         minimize_layout.addWidget(self.minimize_checkbox)
         settings_layout.addLayout(minimize_layout)
 
-        main_layout.addWidget(settings_group)
+        left_layout.addWidget(settings_group)
 
         # --- 按钮组 ---
         button_layout = QHBoxLayout()
@@ -191,7 +252,24 @@ class MainWindow(QMainWindow):
         self.reset_button.clicked.connect(self._on_reset_clicked)
         button_layout.addWidget(self.reset_button)
 
-        main_layout.addLayout(button_layout)
+        left_layout.addLayout(button_layout)
+
+        # 右侧日志显示区域
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+
+        log_group = QGroupBox("运行日志")
+        log_layout = QVBoxLayout(log_group)
+        log_layout.addWidget(self.log_text_edit)
+        right_layout.addWidget(log_group)
+
+        # 将左右两侧添加到分割器
+        main_splitter.addWidget(left_widget)
+        main_splitter.addWidget(right_widget)
+
+        # 设置分割器比例
+        main_splitter.setStretchFactor(0, 3)  # 左侧占比
+        main_splitter.setStretchFactor(1, 2)  # 右侧占比
 
         # 状态栏
         self.statusBar().showMessage("音频响度均衡器已就绪")
@@ -255,6 +333,24 @@ class MainWindow(QMainWindow):
         else:
             self.audio_status_value_label.setText("无音频")
             self.audio_status_value_label.setStyleSheet("")
+
+    def _populate_device_list(self):
+        """填充设备列表"""
+        self.audio_devices = AudioUtilities.GetAllDevices()
+        self.device_combo.clear()
+        default_index = 0
+        for i, device in enumerate(self.audio_devices):
+            self.device_combo.addItem(device.FriendlyName, device.id)
+            if device.id == self.config.device_id:
+                default_index = i
+        self.device_combo.setCurrentIndex(default_index)
+
+    def _on_device_changed(self, index):
+        """设备选择改变"""
+        device_id = self.device_combo.itemData(index)
+        self.config.update(device_id=device_id)
+        self.audio_analyzer.set_device(device_id)
+        self.logger.info(f"选择设备: {device_id}")
 
     def _on_max_db_changed(self, value):
         """最大响度设置改变"""
@@ -337,6 +433,11 @@ class MainWindow(QMainWindow):
         self.interval_max_spin.setValue(self.config.interval_max)
         self.interval_min_spin.setValue(self.config.interval_min)
         self.volume_change_k_spin.setValue(self.config.volume_change_k)
+        # 更新设备选择
+        for i in range(self.device_combo.count()):
+            if self.device_combo.itemData(i) == self.config.device_id:
+                self.device_combo.setCurrentIndex(i)
+                break
 
     def show_calibration_dialog(self):
         """显示校准对话框"""
@@ -363,6 +464,8 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """关闭窗口事件"""
+        # 移除日志处理器
+        logging.getLogger('OfficeGuardian').removeHandler(self.log_handler)
         event.ignore()
         self.hide()
         self.tray_icon.showMessage(

@@ -1,4 +1,4 @@
-from PyInstaller.building.api import PYZ, EXE, COLLECT
+from PyInstaller.building.api import PYZ, EXE
 from PyInstaller.building.build_main import Analysis
 import sys
 import os
@@ -35,24 +35,17 @@ pyz = PYZ(
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,           # 添加二进制文件
+    a.zipfiles,          # 添加压缩文件
+    a.datas,             # 添加数据文件
     [],
-    exclude_binaries=True,
+    exclude_binaries=False,  # 改为False以包含所有文件
     name='OfficeGuardian',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,  # 设置为False以隐藏控制台窗口
-    # icon='icon.ico',  # 如果你有图标文件的话
-)
-
-collect = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='OfficeGuardian',
+    console=False,
+    runtime_tmpdir=None,    # 添加这行以确保在临时目录中运行
+    # icon='icon.ico',
 )

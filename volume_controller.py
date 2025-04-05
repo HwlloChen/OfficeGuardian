@@ -1,9 +1,6 @@
 import logging
 import platform
-import ctypes
 from ctypes import cast, POINTER
-import subprocess
-import time
 
 # Windows音量控制
 if platform.system() == 'Windows':
@@ -19,31 +16,60 @@ class VolumeController:
         self.logger = logging.getLogger('OfficeGuardian.VolumeController')
         self.os_type = platform.system()
         self.current_volume = 0
+        self.device_id = config.device_id
+        self.volume = None
         self._initialize_volume_controller()
 
     def _initialize_volume_controller(self):
         """初始化音量控制接口"""
         try:
             if self.os_type == 'Windows':
-                self.devices = AudioUtilities.GetSpeakers()
-                self.interface = self.devices.Activate(
+                if self.device_id is None:
+                    # 使用默认设备
+                    speakers = AudioUtilities.GetSpeakers()
+                    self.logger.debug("使用默认音频设备")
+                else:
+                    # 尝试找到指定ID的设备
+                    device_enumerator = AudioUtilities.GetDeviceEnumerator()
+                    try:
+                        speakers = device_enumerator.GetDevice(self.device_id)
+                        self.logger.debug(f"使用设备ID: {self.device_id}")
+                    except Exception as e:
+                        self.logger.warning(
+                            f"找不到指定设备({self.device_id})，使用默认设备: {e}")
+                        speakers = AudioUtilities.GetSpeakers()
+
+                interface = speakers.Activate(
                     IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-                self.volume = cast(
-                    self.interface, POINTER(IAudioEndpointVolume))
+                self.volume = cast(interface, POINTER(IAudioEndpointVolume))
                 self.current_volume = self.volume.GetMasterVolumeLevelScalar()
-                self.logger.info("Windows音量控制接口初始化成功")
+                self.device_id = speakers.GetId()  # 更新设备ID
+                self.logger.debug("音量控制接口初始化成功")
             else:
                 self.logger.error(f"不支持的操作系统: {self.os_type}")
                 raise NotImplementedError(f"不支持的操作系统: {self.os_type}")
         except Exception as e:
             self.logger.error(f"初始化音量控制失败: {e}")
             raise
+        finally:
+            self.logger.debug("音量控制接口初始化完成")
+
+    def set_device(self, device_id):
+        """切换音频设备"""
+        if self.device_id != device_id:
+            self.device_id = device_id
+            self._initialize_volume_controller()
+            self.logger.info(f"已切换到设备: {device_id}")
 
     def get_volume(self):
         """获取当前系统音量 (0.0 到 1.0)"""
         try:
             if self.os_type == 'Windows':
                 self.current_volume = self.volume.GetMasterVolumeLevelScalar()
+                # 特殊情况：当音量小于0.8%时，将音量调整为1%
+                if self.current_volume < 0.008:
+                    self.set_volume(0.01)
+                    self.logger.warning("音量过低，自动调整至1%")
                 return self.current_volume
         except Exception as e:
             self.logger.error(f"获取音量失败: {e}")

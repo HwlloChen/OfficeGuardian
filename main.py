@@ -1,10 +1,8 @@
 import sys
-import os
 import logging
 import argparse
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QThread, Signal, QObject
-import time
 
 from audio_analyzer import AudioAnalyzer
 from volume_controller import VolumeController
@@ -31,7 +29,7 @@ class OfficeGuardianWorker(QObject):
         """开始音频均衡处理"""
         self.running = True
         self.audio_analyzer.start_analyzing(callback=self.on_audio_event)
-        self.logger.info("音频均衡处理已启动")
+        self.logger.debug("音频均衡处理已启动")
 
     def stop(self):
         """停止音频均衡处理"""
@@ -52,7 +50,7 @@ class OfficeGuardianWorker(QObject):
 
         if event_type == "over_max":
             # 音频响度超过最大阈值，降低音量
-            self.logger.info(
+            self.logger.debug(
                 f"响度过高: {current_db:.2f} dB > {self.config.max_db:.2f} dB")
             new_volume = self.volume_controller.adjust_volume_for_db(
                 current_db, self.config.max_db)
@@ -60,7 +58,7 @@ class OfficeGuardianWorker(QObject):
 
         elif event_type == "under_min":
             # 音频响度低于最小阈值，提高音量
-            self.logger.info(
+            self.logger.debug(
                 f"响度过低: {current_db:.2f} dB < {self.config.min_db:.2f} dB")
             new_volume = self.volume_controller.adjust_volume_for_db(
                 current_db, self.config.min_db)
@@ -132,6 +130,11 @@ def main():
     except Exception as e:
         logger.error(f"程序启动失败: {e}")
         return 1
+    except Exception as e:
+        logger.critical(f"全局异常捕获: {e}", exc_info=True)  # 记录异常信息
+        return 1
+    finally:
+        logger.info("程序退出")
 
 
 if __name__ == "__main__":

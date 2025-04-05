@@ -20,6 +20,7 @@ class Config:
         'interval_max': 2,         # 音量过大调整间隔（秒）
         'interval_min': 8,         # 音量过小调整间隔（秒）
         'volume_change_k': 0.2,        # 渐进式音量调整系数k
+        'device_id': None,       # 设备ID
     }
 
     def __init__(self):
@@ -30,8 +31,9 @@ class Config:
 
     def _get_config_dir(self):
         """获取配置文件目录"""
-        # 在用户目录下创建配置目录
-        config_dir = os.path.join(str(Path.home()), '.audio_equalizer')
+        # 在程序所在目录下创建配置目录
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        config_dir = os.path.join(base_dir, 'config')
         if not os.path.exists(config_dir):
             os.makedirs(config_dir)
         return config_dir
@@ -52,10 +54,12 @@ class Config:
                 for key, value in merged_config.items():
                     setattr(self, key, value)
 
-                self.logger.info("配置已从文件加载")
+                self.logger.debug("配置已从文件加载")
             except Exception as e:
                 self.logger.error(f"加载配置文件失败: {e}, 使用默认配置")
                 self._apply_default_config()
+            finally:
+                self.logger.debug("配置加载完成")
         else:
             # 使用默认配置
             self._apply_default_config()
