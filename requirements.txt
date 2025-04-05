@@ -1,0 +1,6 @@
+PySide6
+numpy
+sounddevice
+pycaw
+comtypes
+pywin32

@@ -1,0 +1,5 @@
+/.venv
+/build
+/create_icon.py
+/dist
+/__pycache__
