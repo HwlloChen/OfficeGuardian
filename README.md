@@ -69,4 +69,4 @@ python main.py
 
 ## 许可证
 
-MIT许可证 - 详情请参阅LICENSE文件
+GNU GENERAL PUBLIC LICENSE v3 - 详情请参阅LICENSE文件
