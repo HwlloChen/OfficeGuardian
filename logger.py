@@ -17,7 +17,7 @@ def setup_logger(config):
         os.makedirs(log_dir)
 
     # 配置根日志记录器
-    logger = logging.getLogger('AudioEqualizer')
+    logger = logging.getLogger('OfficeGuardian')
     logger.setLevel(log_level)
 
     # 清除现有处理器

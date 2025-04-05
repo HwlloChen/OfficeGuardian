@@ -23,7 +23,7 @@ class Config:
     }
 
     def __init__(self):
-        self.logger = logging.getLogger('AudioEqualizer.Config')
+        self.logger = logging.getLogger('OfficeGuardian.Config')
         self.config_dir = self._get_config_dir()
         self.config_file = os.path.join(self.config_dir, 'config.json')
         self._load_config()

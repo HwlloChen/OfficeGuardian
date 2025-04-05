@@ -9,8 +9,8 @@ class ServiceManager:
     """Windows服务管理类，用于添加/删除开机启动项"""
     
     def __init__(self):
-        self.logger = logging.getLogger('AudioEqualizer.ServiceManager')
-        self.app_name = "AudioEqualizer"
+        self.logger = logging.getLogger('OfficeGuardian.ServiceManager')
+        self.app_name = "OfficeGuardian"
         self.exe_path = sys.executable
         
         # 获取当前用户的启动文件夹路径

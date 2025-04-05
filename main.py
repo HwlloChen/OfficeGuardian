@@ -14,14 +14,14 @@ from gui import MainWindow
 from service_manager import ServiceManager
 
 
-class AudioEqualizerWorker(QObject):
+class OfficeGuardianWorker(QObject):
     """音频均衡器工作线程"""
 
     volume_changed = Signal(float)  # 音量变化信号
 
     def __init__(self, audio_analyzer, volume_controller, config):
         super().__init__()
-        self.logger = logging.getLogger('AudioEqualizer.Worker')
+        self.logger = logging.getLogger('OfficeGuardian.Worker')
         self.audio_analyzer = audio_analyzer
         self.volume_controller = volume_controller
         self.config = config
@@ -70,7 +70,7 @@ class AudioEqualizerWorker(QObject):
 def main():
     """程序主入口"""
     # 解析命令行参数
-    parser = argparse.ArgumentParser(description='音频响度均衡器')
+    parser = argparse.ArgumentParser(description='办公室的大盾 - 音频响度均衡器')
     parser.add_argument('--minimized', action='store_true', help='以最小化方式启动')
     parser.add_argument('--service', action='store_true', help='以服务方式启动')
     args = parser.parse_args()
@@ -84,7 +84,7 @@ def main():
 
     # 创建QApplication实例
     app = QApplication(sys.argv)
-    app.setApplicationName("AudioEqualizer")
+    app.setApplicationName("OfficeGuardian")
     app.setQuitOnLastWindowClosed(False)  # 关闭窗口时不退出应用
 
     # 创建服务管理器
@@ -96,7 +96,7 @@ def main():
         audio_analyzer = AudioAnalyzer(config)
 
         # 创建工作线程
-        worker = AudioEqualizerWorker(
+        worker = OfficeGuardianWorker(
             audio_analyzer, volume_controller, config)
         worker_thread = QThread()
         worker.moveToThread(worker_thread)

@@ -14,7 +14,7 @@ class AudioAnalyzer:
 
     def __init__(self, config):
         self.config = config
-        self.logger = logging.getLogger('AudioEqualizer.AudioAnalyzer')
+        self.logger = logging.getLogger('OfficeGuardian.AudioAnalyzer')
         self.stop_event = threading.Event()
         self.analysis_thread = None
         self.current_db = -100.0

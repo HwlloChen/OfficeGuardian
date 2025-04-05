@@ -16,7 +16,7 @@ class VolumeController:
 
     def __init__(self, config):
         self.config = config
-        self.logger = logging.getLogger('AudioEqualizer.VolumeController')
+        self.logger = logging.getLogger('OfficeGuardian.VolumeController')
         self.os_type = platform.system()
         self.current_volume = 0
         self._initialize_volume_controller()

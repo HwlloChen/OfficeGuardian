@@ -13,7 +13,7 @@ class CalibrationDialog(QDialog):
 
     def __init__(self, audio_analyzer, volume_controller, parent=None):
         super().__init__(parent)
-        self.logger = logging.getLogger('AudioEqualizer.Calibration')
+        self.logger = logging.getLogger('OfficeGuardian.Calibration')
         self.audio_analyzer = audio_analyzer
         self.volume_controller = volume_controller
 

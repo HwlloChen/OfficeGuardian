@@ -18,7 +18,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, audio_analyzer, volume_controller, config, service_manager):
         super().__init__()
-        self.logger = logging.getLogger('AudioEqualizer.GUI')
+        self.logger = logging.getLogger('OfficeGuardian.GUI')
         self.audio_analyzer = audio_analyzer
         self.volume_controller = volume_controller
         self.config = config
@@ -38,7 +38,7 @@ class MainWindow(QMainWindow):
 
     def _init_ui(self):
         """初始化UI"""
-        self.setWindowTitle("音频响度均衡器")
+        self.setWindowTitle("办公室的大盾 - 音频响度均衡器")
         self.setMinimumSize(500, 400)
 
         # 中央部件
@@ -366,7 +366,7 @@ class MainWindow(QMainWindow):
         event.ignore()
         self.hide()
         self.tray_icon.showMessage(
-            "音频响度均衡器",
+            "办公室的大盾 - 音频响度均衡器",
             "程序已最小化到系统托盘，双击图标可以重新打开。",
             QSystemTrayIcon.Information,
             2000

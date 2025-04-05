@@ -1,6 +1,8 @@
-# 音频响度均衡器
+# 办公室的大盾 - 音频响度均衡器
 
 这是一个自动调节系统音量以保持音频响度在特定范围内的应用程序。它通过分析电脑的音频输出响度，自动调整系统音量，使实际响度控制在预设的范围内。
+
+**特别场景：班级电脑老师们的视频音量大小不一 / 电脑音量被同学调来调去**
 
 ## 功能特点
 
@@ -15,16 +17,19 @@
 
 - Windows 7/8/10/11
 - Python 3.7+
-- 必要的Python库: PySide6, numpy, sounddevice, pycaw, comtypes
+- 必要的Python库: PySide6, numpy, sounddevice, pycaw, comtypes, pywin32
 
 ## 安装方法
 
 1. 克隆或下载本仓库
+   ```bash
+   git clone https://github.com/HwlloChen/OfficeGuardian.git
+   ```
 2. 安装必要的依赖:
 
-```bash
-pip install -r requirements.txt
-```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 ## 使用方法
 
