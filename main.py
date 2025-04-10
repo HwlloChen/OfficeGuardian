@@ -1,28 +1,23 @@
-import sys
+import sys, os
 import logging
 import argparse
-from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QThread, Signal, QObject
+import wx
+from utils.audio_analyzer import AudioAnalyzer
+from utils.volume_controller import VolumeController
+from utils.config import Config
+from utils.logger import setup_logger
+from utils.gui import MainFrame
+from utils.service_manager import ServiceManager
 
-from audio_analyzer import AudioAnalyzer
-from volume_controller import VolumeController
-from config import Config
-from logger import setup_logger
-from gui import MainWindow
-from service_manager import ServiceManager
+class OfficeGuardianWorker:
+    """音频均衡器工作类"""
 
-
-class OfficeGuardianWorker(QObject):
-    """音频均衡器工作线程"""
-
-    volume_changed = Signal(float)  # 音量变化信号
-
-    def __init__(self, audio_analyzer, volume_controller, config):
-        super().__init__()
+    def __init__(self, audio_analyzer, volume_controller, config, gui=None):
         self.logger = logging.getLogger('OfficeGuardian.Worker')
         self.audio_analyzer = audio_analyzer
         self.volume_controller = volume_controller
         self.config = config
+        self.gui = gui
         self.running = False
 
     def start(self):
@@ -38,32 +33,25 @@ class OfficeGuardianWorker(QObject):
         self.logger.info("音频均衡处理已停止")
 
     def on_audio_event(self, event_type, current_db):
-        """
-        音频事件回调
-
-        Args:
-            event_type: 事件类型 ('over_max' 或 'under_min')
-            current_db: 当前分贝值
-        """
+        """音频事件回调"""
         if not self.running:
             return
 
         if event_type == "over_max":
-            # 音频响度超过最大阈值，降低音量
             self.logger.debug(
                 f"响度过高: {current_db:.2f} dB > {self.config.max_db:.2f} dB")
             new_volume = self.volume_controller.adjust_volume_for_db(
                 current_db, self.config.max_db)
-            self.volume_changed.emit(new_volume)
+            if self.gui:
+                wx.CallAfter(self.gui.update_volume, new_volume)
 
         elif event_type == "under_min":
-            # 音频响度低于最小阈值，提高音量
             self.logger.debug(
                 f"响度过低: {current_db:.2f} dB < {self.config.min_db:.2f} dB")
             new_volume = self.volume_controller.adjust_volume_for_db(
                 current_db, self.config.min_db)
-            self.volume_changed.emit(new_volume)
-
+            if self.gui:
+                wx.CallAfter(self.gui.update_volume, new_volume)
 
 def main():
     """程序主入口"""
@@ -74,42 +62,36 @@ def main():
     args = parser.parse_args()
 
     # 加载配置
-    config = Config()
+    config = Config(os.path.dirname(os.path.abspath(__file__)))
 
     # 设置日志
     logger = setup_logger(config)
     logger.info("音频响度均衡器启动中...")
 
-    # 创建QApplication实例
-    app = QApplication(sys.argv)
-    app.setApplicationName("OfficeGuardian")
-    app.setQuitOnLastWindowClosed(False)  # 关闭窗口时不退出应用
+    # 创建wxPython应用实例
+    app = wx.App()
 
-    # 创建服务管理器
-    service_manager = ServiceManager()
-
-    # 创建音频分析器和音量控制器
     try:
+        # 创建必要的组件
         volume_controller = VolumeController(config)
         audio_analyzer = AudioAnalyzer(config)
+        service_manager = ServiceManager()
+
+        # 创建主窗口
+        frame = MainFrame(None, audio_analyzer, volume_controller, config, service_manager)
+        app.SetTopWindow(frame)
 
         # 创建工作线程
-        worker = OfficeGuardianWorker(
-            audio_analyzer, volume_controller, config)
-        worker_thread = QThread()
-        worker.moveToThread(worker_thread)
-        worker_thread.started.connect(worker.start)
-        worker_thread.start()
-
-        # 创建并显示主窗口
-        main_window = MainWindow(
-            audio_analyzer, volume_controller, config, service_manager)
+        worker = OfficeGuardianWorker(audio_analyzer, volume_controller, config, frame)
+        frame.set_worker(worker)  # 设置 worker 实例
+        worker.start()
 
         # 根据参数和配置决定是否最小化启动
         if args.minimized or (config.start_minimized and not args.service):
             logger.info("程序以最小化方式启动")
+            frame.Hide()
         else:
-            main_window.show()
+            frame.Show()
 
         # 检查开机自启动设置
         if config.auto_start:
@@ -117,25 +99,18 @@ def main():
                 logger.warning("添加开机启动项失败")
 
         # 开始应用主循环
-        exit_code = app.exec()
+        exit_code = app.MainLoop()
 
         # 清理资源
         worker.stop()
-        worker_thread.quit()
-        worker_thread.wait()
-
         logger.info("程序正常退出")
         return exit_code
 
     except Exception as e:
-        logger.error(f"程序启动失败: {e}")
-        return 1
-    except Exception as e:
-        logger.critical(f"全局异常捕获: {e}", exc_info=True)  # 记录异常信息
+        logger.critical(f"程序启动失败: {e}", exc_info=True)
         return 1
     finally:
         logger.info("程序退出")
-
 
 if __name__ == "__main__":
     sys.exit(main())

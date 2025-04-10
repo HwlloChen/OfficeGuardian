@@ -1,7 +1,6 @@
 import os
 import json
 import logging
-from pathlib import Path
 
 
 class Config:
@@ -23,8 +22,9 @@ class Config:
         'device_id': None,       # 设备ID
     }
 
-    def __init__(self):
+    def __init__(self, base_dir=None):
         self.logger = logging.getLogger('OfficeGuardian.Config')
+        self.base_dir = base_dir if base_dir else os.path.dirname(os.path.abspath(__file__))
         self.config_dir = self._get_config_dir()
         self.config_file = os.path.join(self.config_dir, 'config.json')
         self._load_config()
@@ -32,8 +32,7 @@ class Config:
     def _get_config_dir(self):
         """获取配置文件目录"""
         # 在程序所在目录下创建配置目录
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        config_dir = os.path.join(base_dir, 'config')
+        config_dir = os.path.join(self.base_dir, 'config')
         if not os.path.exists(config_dir):
             os.makedirs(config_dir)
         return config_dir
