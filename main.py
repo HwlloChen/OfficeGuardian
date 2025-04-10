@@ -61,8 +61,16 @@ def main():
     parser.add_argument('--service', action='store_true', help='以服务方式启动')
     args = parser.parse_args()
 
+    # 获取程序路径
+    if getattr(sys, 'frozen', False):
+        # 如果是打包后的exe
+        application_path = os.path.dirname(sys.executable)
+    else:
+        # 如果是开发环境中的python脚本
+        application_path = os.path.dirname(os.path.abspath(__file__))
+
     # 加载配置
-    config = Config(os.path.dirname(os.path.abspath(__file__)))
+    config = Config(application_path)
 
     # 设置日志
     logger = setup_logger(config)
